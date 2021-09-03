@@ -3,7 +3,8 @@
 	"version": "1.0.0",
 	"description": "",
 	"scripts": {
-		"start": "ts-node src/index.ts"
+		"start": "ts-node src/index.ts",
+		"build": "tsc & ts-node scripts/pack.ts"
 	},
 	"author": "true_mogician",
 	"license": "MIT",
@@ -12,6 +13,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "^16.7.10",
-		"@types/request-promise": "^4.1.48"
+		"@types/request-promise": "^4.1.48",
+		"pkg": "^5.3.1"
 	}
 }
