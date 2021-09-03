@@ -1,5 +1,6 @@
 import Http from "http";
 import Request from "request-promise";
+import Settings from "../appSettings.json"
 
 const port = 3367;
 
@@ -124,6 +125,6 @@ Http.createServer(async (req, res) => {
 	catch (error) {
 		send(res, 500, error);
 	}
-}).listen(port);
+}).listen(Settings.port);
 
-console.log("Listening on " + port);
+console.log("Listening on " + Settings.port);

@@ -14,6 +14,7 @@
 	"devDependencies": {
 		"@types/node": "^16.7.10",
 		"@types/request-promise": "^4.1.48",
-		"pkg": "^5.3.1"
+		"pkg": "^5.3.1",
+		"ts-node": "^10.2.1"
 	}
 }
