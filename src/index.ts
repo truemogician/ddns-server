@@ -129,7 +129,7 @@ Http.createServer(async (req, res) => {
 			send(res, 404);
 	}
 	catch (error) {
-		send(res, 500, typeof error == "string" ? error : error.toString());
+		send(res, 500, typeof error == "string" ? error : (error as any).toString());
 		console.log(new Date(), error);
 	}
 }).listen(Settings.port);
