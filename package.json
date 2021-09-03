@@ -5,7 +5,8 @@
 	"scripts": {
 		"start": "ts-node src/index.ts",
 		"build": "tsc & ts-node scripts/pack.ts",
-		"register": "ts-node scripts/register.ts"
+		"register": "ts-node scripts/register.ts",
+		"unregister": "ts-node scripts/unregister.ts"
 	},
 	"author": "true_mogician",
 	"license": "MIT",
