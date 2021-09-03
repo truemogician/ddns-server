@@ -79,6 +79,11 @@ Http.createServer(async (req, res) => {
 		}
 		recordsResp.records!.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
 		const record = recordsResp.records![0];
+		if (record.value == body.ip) {
+			res.setHeader("Content-Type", "text/plain");
+			send(res, 200, `${body.subDomain ? body.subDomain + '.' : ''}${body.domain}的解析值没有变化，无需更新`);
+			return;
+		}
 		const modifyResp = JSON.parse(await Request.post("https://dnsapi.cn/Record.Modify", {
 			form: {
 				login_token: `${body.tokenId},${body.tokenValue}`,
@@ -100,7 +105,7 @@ Http.createServer(async (req, res) => {
 			send(res, 400, modifyResp.status.message);
 			return;
 		};
-		send(res, 200);
+		send(res, 200, `${body.subDomain ? body.subDomain + '.' : ''}${body.domain}的解析值成功从${record.value}更新为${body.ip}`);
 	}
 	catch (error) {
 		send(res, 500, error);
