@@ -4,7 +4,8 @@
 	"description": "",
 	"scripts": {
 		"start": "ts-node src/index.ts",
-		"build": "tsc & ts-node scripts/pack.ts"
+		"build": "tsc & ts-node scripts/pack.ts",
+		"register": "ts-node scripts/register.ts"
 	},
 	"author": "true_mogician",
 	"license": "MIT",
