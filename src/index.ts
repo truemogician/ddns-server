@@ -1,4 +1,5 @@
 import Http from "http";
+import Path from "path";
 import Request from "request-promise";
 import Settings from "../appSettings.json"
 
@@ -63,6 +64,10 @@ function send(req: Http.ServerResponse, statusCode: number, data?: any) {
 	req.statusCode = statusCode;
 	req.end(data);
 }
+
+process.chdir((process as any).pkg
+	? Path.resolve(process.execPath + "/..")
+	: __dirname);
 
 Http.createServer(async (req, res) => {
 	if (req.url != "/dnspod") {
