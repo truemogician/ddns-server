@@ -1,20 +1,23 @@
+import "@basic-type-extensions/array";
 import Http from "http";
 import Path from "path";
 import Request from "request-promise";
-import Settings from "../appSettings.json"
-
-const port = 3367;
+import config from "../config/server.config.json";
 
 type NumString = string;
 type DateString = string;
 
 interface Body {
-	tokenId: number,
-	tokenValue: string,
-	ipVersion?: 4 | 6,
-	domain: string,
-	subDomain?: string,
-	ip: string
+	domain: string;
+
+	token: {
+		id: number,
+		value: string
+	};
+
+	oldIp: string;
+
+	newIp: string;
 }
 interface Record {
 	id: NumString,
@@ -38,7 +41,17 @@ interface DnspodStatus {
 	created_at: DateString
 }
 
-function parseBody<T = any>(req: Http.IncomingMessage): Promise<T> {
+function isBody(body: any): body is Body {
+	return body && typeof body === "object" &&
+		typeof body.domain === "string" &&
+		typeof body.token === "object" &&
+		typeof body.token.id === "number" &&
+		typeof body.token.value === "string" &&
+		typeof body.oldIp === "string" &&
+		typeof body.newIp === "string";
+}
+
+function receiveBody(req: Http.IncomingMessage): Promise<string> {
 	return new Promise((resolve, reject) => {
 		let body = "";
 		req.on("data", chunk => {
@@ -51,7 +64,7 @@ function parseBody<T = any>(req: Http.IncomingMessage): Promise<T> {
 		});
 		req.on("end", () => {
 			try {
-				resolve(JSON.parse(body));
+				resolve(body);
 			}
 			catch (error) {
 				reject(error);
@@ -66,72 +79,107 @@ function send(req: Http.ServerResponse, statusCode: number, data?: any) {
 }
 
 process.chdir((process as any).pkg
-	? Path.resolve(process.execPath + "/..")
-	: __dirname);
+	? Path.resolve(process.execPath, "..")
+	: __dirname
+);
 
+const ipv4Pattern = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
 Http.createServer(async (req, res) => {
 	try {
-		if (req.url == "/dnspod") {
-			if (req.method != "POST") {
-				send(res, 405);
-				return;
-			}
-			const body = await parseBody<Body>(req);
-			console.log(new Date().toTimeString(), body);
-			const recordsResp = JSON.parse(await Request.post("https://dnsapi.cn/Record.List", {
-				form: {
-					login_token: `${body.tokenId},${body.tokenValue}`,
-					format: "json",
-					domain: body.domain,
-					sub_domain: body.subDomain ?? "@",
-					record_type: body.ipVersion == 6 ? "AAAA" : "A"
+		switch (req.url) {
+			case "my-ip": {
+				if (req.method !== "GET") {
+					send(res, 405);
+					return;
 				}
-			})) as {
-				status: DnspodStatus,
-				records?: Record[]
-			};
-			if (recordsResp.status.code != "1") {
+				const ip = req.headers["x-real-ip"] || req.socket.remoteAddress;
 				res.setHeader("Content-Type", "text/plain");
-				send(res, 400, recordsResp.status.message);
-				return;
+				send(res, 200, ip);
+				break;
 			}
-			recordsResp.records!.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
-			const record = recordsResp.records![0];
-			if (record.value == body.ip) {
-				res.setHeader("Content-Type", "text/plain");
-				send(res, 200, `${body.subDomain ? body.subDomain + '.' : ''}${body.domain}的解析值没有变化，无需更新`);
-				return;
-			}
-			const modifyResp = JSON.parse(await Request.post("https://dnsapi.cn/Record.Modify", {
-				form: {
-					login_token: `${body.tokenId},${body.tokenValue}`,
-					format: "json",
-					domain: body.domain,
-					record_id: record.id,
-					sub_domain: record.name,
-					record_type: record.type,
-					record_line_id: record.line_id,
-					value: body.ip,
-					mx: record.mx,
-					ttl: record.ttl,
-					status: record.status,
-					weight: record.weight
+			case "/dnspod/update": {
+				if (req.method != "POST") {
+					send(res, 405);
+					return;
 				}
-			})) as { status: DnspodStatus };
-			if (modifyResp.status.code != "1") {
 				res.setHeader("Content-Type", "text/plain");
-				send(res, 400, modifyResp.status.message);
-				return;
-			};
-			send(res, 200, `${body.subDomain ? body.subDomain + '.' : ''}${body.domain}的解析值成功从${record.value}更新为${body.ip}`);
+				const string = await receiveBody(req);
+				const body = JSON.parse(string);
+				if (!isBody(body)) {
+					send(res, 400, "Invalid body");
+					return;
+				}
+				const { domain, token, oldIp, newIp } = body;
+				if (!ipv4Pattern.test(oldIp) || !ipv4Pattern.test(newIp)) {
+					send(res, 400, "Invalid IP");
+					return;
+				}
+				if (oldIp == newIp) {
+					send(res, 400, "IP not changed");
+					return;
+				}
+				console.log(new Date().toTimeString(), body);
+				const recordsResp = JSON.parse(await Request.post("https://dnsapi.cn/Record.List", {
+					form: {
+						login_token: `${token.id},${token.value}`,
+						format: "json",
+						domain
+					}
+				})) as {
+					status: DnspodStatus,
+					records?: Record[]
+				};
+				if (recordsResp.status.code != "1") {
+					send(res, 500, recordsResp.status.message);
+					return;
+				}
+				recordsResp.records!.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+				const records = recordsResp.records!.filter(r => r.value == body.oldIp);
+				if (records.length == 0) {
+					send(res, 200, "No record to update");
+					return;
+				}
+				const results = await records.mapAsync(
+					record => Request.post("https://dnsapi.cn/Record.Modify", {
+						form: {
+							login_token: `${token.id},${token.value}`,
+							format: "json",
+							domain,
+							record_id: record.id,
+							sub_domain: record.name,
+							record_type: record.type,
+							record_line_id: record.line_id,
+							value: newIp,
+							mx: record.mx,
+							ttl: record.ttl,
+							status: record.status,
+							weight: record.weight
+						}
+					}).then(r => JSON.parse(r) as { status: DnspodStatus }),
+					(error: any) => {
+						console.error(error);
+						send(res, 500, error);
+						return undefined;
+					}
+				);
+				if (results === undefined)
+					return;
+				const errorResult = results.find(r => r.status.code != "1");
+				if (errorResult) {
+					send(res, 500, errorResult.status.message);
+					return;
+				}
+				send(res, 200, `Updated ${results.length} records`);
+				break;
+			}
+			default:
+				send(res, 404);
 		}
-		else
-			send(res, 404);
 	}
 	catch (error) {
-		send(res, 500, typeof error == "string" ? error : (error as any).toString());
-		console.log(new Date(), error);
+		console.error(error);
+		send(res, 500, error);
 	}
-}).listen(Settings.port);
+}).listen(config.port);
 
-console.log("Listening on " + Settings.port);
+console.log("Listening on " + config.port);
