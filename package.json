@@ -1,6 +1,6 @@
 {
 	"name": "ddns-server",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "",
 	"scripts": {
 		"start": "ts-node src/index.ts",
@@ -11,13 +11,13 @@
 	"author": "true_mogician",
 	"license": "MIT",
 	"dependencies": {
-		"@basic-type-extensions/array": "^1.3.1",
+		"@basic-type-extensions/array": "^1.5.0",
 		"request-promise": "^4.2.6"
 	},
 	"devDependencies": {
-		"@types/node": "^16.7.10",
-		"@types/request-promise": "^4.1.48",
-		"pkg": "^5.3.1",
-		"ts-node": "^10.2.1"
+		"@types/node": "^20.11.20",
+		"@types/request-promise": "^4.1.51",
+		"pkg": "^5.8.1",
+		"ts-node": "^10.9.2"
 	}
 }
