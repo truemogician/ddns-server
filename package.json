@@ -1,6 +1,6 @@
 {
 	"name": "ddns-server",
-	"version": "1.0.1",
+	"version": "1.1.0",
 	"description": "",
 	"scripts": {
 		"start": "ts-node src/index.ts",
@@ -12,11 +12,10 @@
 	"license": "MIT",
 	"dependencies": {
 		"@basic-type-extensions/array": "^1.5.0",
-		"request-promise": "^4.2.6"
+		"axios": "^1.6.7"
 	},
 	"devDependencies": {
 		"@types/node": "^20.11.20",
-		"@types/request-promise": "^4.1.51",
 		"pkg": "^5.8.1",
 		"ts-node": "^10.9.2"
 	}
